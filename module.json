@@ -2,7 +2,7 @@
   "name": "1000_mnm3e-character-importer",
   "title": "MNM3E Character Importer",
   "description": "Imports canonical JSON character documents into the legacy mnm3e system data model.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "OpenAI Codex",
   "minimumCoreVersion": "0.7.9",
   "compatibleCoreVersion": "9",
@@ -24,7 +24,7 @@
   "packs": [],
   "url": "https://github.com/plasticlittle/character-import-module",
   "manifest": "https://raw.githubusercontent.com/plasticlittle/character-import-module/main/module.json",
-  "download": "https://raw.githubusercontent.com/plasticlittle/character-import-module/main/1000_mnm3e-character-importer-v0.1.0.zip",
+  "download": "https://raw.githubusercontent.com/plasticlittle/character-import-module/main/1000_mnm3e-character-importer-v0.1.1.zip",
   "license": "MIT",
   "readme": "README.md"
 }
