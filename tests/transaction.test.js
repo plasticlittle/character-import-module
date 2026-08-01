@@ -85,6 +85,77 @@ test("create uses CONFIG.Actor.documentClass when global Actor is unavailable", 
   }
 });
 
+test("create supports legacy createEmbeddedEntity API", async () => {
+  const calls = [];
+  const actor = {
+    async createEmbeddedEntity(type, data) {
+      calls.push([type, data.name || data.label]);
+      return { type, data };
+    }
+  };
+  class ActorClass {
+    static async create() {
+      return actor;
+    }
+  }
+
+  const result = await createActorTransaction({
+    actorData: { name: "Legacy Actor", type: "character", data: {}, flags: {} },
+    actorEffects: [{ label: "Legacy Effect" }],
+    itemDataArray: [{ name: "Legacy Item", type: "power", data: {} }]
+  }, { ActorClass });
+
+  assert.equal(result, actor);
+  assert.deepEqual(calls, [
+    ["ActiveEffect", "Legacy Effect"],
+    ["OwnedItem", "Legacy Item"]
+  ]);
+});
+
+test("update rollback supports legacy embedded entity APIs", async () => {
+  const calls = [];
+  const actor = {
+    data: {
+      name: "Old",
+      type: "character",
+      img: "old.png",
+      data: {},
+      flags: {},
+      items: [{ _id: "oldItem", name: "Old Item", type: "power", data: {} }],
+      effects: [{ _id: "oldEffect", label: "Old Effect" }]
+    },
+    toObject() {
+      return this.data;
+    },
+    async update(data) {
+      calls.push(["update", data.name]);
+    },
+    async deleteEmbeddedEntity(type, id) {
+      calls.push(["delete", type, id]);
+    },
+    async createEmbeddedEntity(type, data) {
+      calls.push(["create", type, data.name || data.label]);
+      if (type === "OwnedItem" && data.name === "Bad Item") {
+        throw new Error("legacy update failed");
+      }
+      return data;
+    }
+  };
+
+  await assert.rejects(
+    updateActorTransaction(actor, {
+      actorData: { name: "New", type: "character", img: "new.png", data: {}, flags: {} },
+      actorEffects: [],
+      itemDataArray: [{ name: "Bad Item", type: "power", data: {} }]
+    }, { strategy: "replace" }),
+    /legacy update failed/
+  );
+
+  assert.equal(calls.some((call) => call[0] === "delete" && call[1] === "OwnedItem" && call[2] === "oldItem"), true);
+  assert.equal(calls.some((call) => call[0] === "create" && call[1] === "ActiveEffect" && call[2] === "Old Effect"), true);
+  assert.equal(calls.some((call) => call[0] === "create" && call[1] === "OwnedItem" && call[2] === "Old Item"), true);
+});
+
 test("update rollback restores actor, items and active effects", async () => {
   const calls = [];
   const actor = {

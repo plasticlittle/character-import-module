@@ -20,10 +20,10 @@ export async function createActorTransaction(normalized, options = {}) {
   try {
     actor = await ActorClass.create(actorData);
     if (normalized.actorEffects?.length) {
-      await actor.createEmbeddedDocuments("ActiveEffect", duplicateData(normalized.actorEffects));
+      await createEmbedded(actor, "ActiveEffect", normalized.actorEffects);
     }
     if (normalized.itemDataArray?.length) {
-      const created = await actor.createEmbeddedDocuments("Item", duplicateData(normalized.itemDataArray));
+      const created = await createEmbedded(actor, "Item", normalized.itemDataArray);
       if (Array.isArray(created) && created.length !== normalized.itemDataArray.length) {
         throw new Error("Foundry did not create all requested embedded items.");
       }
@@ -104,18 +104,12 @@ function pickActorBase(source) {
 
 async function replaceEmbedded(actor, documentName, data) {
   const ids = embeddedIds(actor, documentName);
-  if (ids.length && typeof actor.deleteEmbeddedDocuments === "function") {
-    await actor.deleteEmbeddedDocuments(documentName, ids);
-  }
-  if (data.length && typeof actor.createEmbeddedDocuments === "function") {
-    await actor.createEmbeddedDocuments(documentName, duplicateData(data));
-  }
+  await deleteEmbedded(actor, documentName, ids);
+  await createEmbedded(actor, documentName, data);
 }
 
 async function appendEmbedded(actor, documentName, data) {
-  if (data.length && typeof actor.createEmbeddedDocuments === "function") {
-    await actor.createEmbeddedDocuments(documentName, duplicateData(data));
-  }
+  await createEmbedded(actor, documentName, data);
 }
 
 async function mergeItemsByExternalId(actor, itemDataArray) {
@@ -143,12 +137,80 @@ async function mergeItemsByExternalId(actor, itemDataArray) {
     }
   });
 
-  if (toUpdate.length && typeof actor.updateEmbeddedDocuments === "function") {
-    await actor.updateEmbeddedDocuments("Item", toUpdate);
+  await updateEmbedded(actor, "Item", toUpdate);
+  await createEmbedded(actor, "Item", toCreate);
+}
+
+async function createEmbedded(actor, documentName, data) {
+  const documents = duplicateData(data || []);
+  if (!documents.length) return [];
+  if (typeof actor.createEmbeddedDocuments === "function") {
+    return actor.createEmbeddedDocuments(documentName, documents);
   }
-  if (toCreate.length && typeof actor.createEmbeddedDocuments === "function") {
-    await actor.createEmbeddedDocuments("Item", duplicateData(toCreate));
+  if (typeof actor.createEmbeddedEntity === "function") {
+    const created = [];
+    for (const document of documents) {
+      created.push(await actor.createEmbeddedEntity(legacyEmbeddedName(documentName), document));
+    }
+    return created;
   }
+  if (documentName === "Item" && typeof actor.createOwnedItem === "function") {
+    const created = [];
+    for (const document of documents) {
+      created.push(await actor.createOwnedItem(document));
+    }
+    return created;
+  }
+  throw new Error(`Actor cannot create embedded ${documentName} documents in this Foundry version.`);
+}
+
+async function updateEmbedded(actor, documentName, data) {
+  const documents = duplicateData(data || []);
+  if (!documents.length) return [];
+  if (typeof actor.updateEmbeddedDocuments === "function") {
+    return actor.updateEmbeddedDocuments(documentName, documents);
+  }
+  if (typeof actor.updateEmbeddedEntity === "function") {
+    const updated = [];
+    for (const document of documents) {
+      updated.push(await actor.updateEmbeddedEntity(legacyEmbeddedName(documentName), document));
+    }
+    return updated;
+  }
+  if (documentName === "Item" && typeof actor.updateOwnedItem === "function") {
+    const updated = [];
+    for (const document of documents) {
+      updated.push(await actor.updateOwnedItem(document));
+    }
+    return updated;
+  }
+  throw new Error(`Actor cannot update embedded ${documentName} documents in this Foundry version.`);
+}
+
+async function deleteEmbedded(actor, documentName, ids) {
+  if (!ids.length) return [];
+  if (typeof actor.deleteEmbeddedDocuments === "function") {
+    return actor.deleteEmbeddedDocuments(documentName, ids);
+  }
+  if (typeof actor.deleteEmbeddedEntity === "function") {
+    const deleted = [];
+    for (const id of ids) {
+      deleted.push(await actor.deleteEmbeddedEntity(legacyEmbeddedName(documentName), id));
+    }
+    return deleted;
+  }
+  if (documentName === "Item" && typeof actor.deleteOwnedItem === "function") {
+    const deleted = [];
+    for (const id of ids) {
+      deleted.push(await actor.deleteOwnedItem(id));
+    }
+    return deleted;
+  }
+  throw new Error(`Actor cannot delete embedded ${documentName} documents in this Foundry version.`);
+}
+
+function legacyEmbeddedName(documentName) {
+  return documentName === "Item" ? "OwnedItem" : documentName;
 }
 
 function itemExternalId(item) {
