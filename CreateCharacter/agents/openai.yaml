@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Character"
+  short_description: "Erstellt M&M-3E-Profile plus Import-JSON."
+  default_prompt: "Nutze $mnm3e-character-creation, um einen M&M-3E-Charakter oder ein Gegnerprofil mit Powers, Complications, PP-/PL-Audit und garantiertem CreateImport-JSON zu erstellen."
