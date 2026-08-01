@@ -1,4 +1,4 @@
-import { FLAG_EXTERNAL_ID, FLAG_SCOPE } from "./constants.js";
+import { FLAG_EXTERNAL_ID, FLAG_SCOPE, FLAG_SOURCE_ITEM_EXTERNAL_ID } from "./constants.js";
 import { duplicateData, toSourceObject } from "./foundry-utils.js";
 
 export async function commitImport(normalized, options = {}) {
@@ -19,14 +19,16 @@ export async function createActorTransaction(normalized, options = {}) {
   let actor = null;
   try {
     actor = await ActorClass.create(actorData);
-    if (normalized.actorEffects?.length) {
-      await createEmbedded(actor, "ActiveEffect", normalized.actorEffects);
-    }
+    let createdItems = [];
     if (normalized.itemDataArray?.length) {
-      const created = await createEmbedded(actor, "Item", normalized.itemDataArray);
-      if (Array.isArray(created) && created.length !== normalized.itemDataArray.length) {
+      createdItems = await createEmbedded(actor, "Item", normalized.itemDataArray);
+      if (Array.isArray(createdItems) && createdItems.length !== normalized.itemDataArray.length) {
         throw new Error("Foundry did not create all requested embedded items.");
       }
+    }
+    if (normalized.actorEffects?.length) {
+      const itemIndex = buildItemIndex(actor, normalized.itemDataArray, createdItems);
+      await createEmbedded(actor, "ActiveEffect", prepareActorEffects(actor, normalized.actorEffects, itemIndex));
     }
     return actor;
   } catch (error) {
@@ -51,14 +53,18 @@ export async function updateActorTransaction(actor, normalized, options = {}) {
     await applyActorBaseUpdate(actor, normalized.actorData);
     const strategy = options.strategy || "replace";
     if (strategy === "replace") {
-      await replaceEmbedded(actor, "ActiveEffect", normalized.actorEffects || []);
-      await replaceEmbedded(actor, "Item", normalized.itemDataArray || []);
+      await deleteEmbedded(actor, "ActiveEffect", embeddedIds(actor, "ActiveEffect"));
+      const affectedItems = await replaceEmbedded(actor, "Item", normalized.itemDataArray || []);
+      const itemIndex = buildItemIndex(actor, normalized.itemDataArray || [], affectedItems);
+      await createEmbedded(actor, "ActiveEffect", prepareActorEffects(actor, normalized.actorEffects || [], itemIndex));
     } else if (strategy === "append") {
-      await appendEmbedded(actor, "ActiveEffect", normalized.actorEffects || []);
-      await appendEmbedded(actor, "Item", normalized.itemDataArray || []);
+      const affectedItems = await appendEmbedded(actor, "Item", normalized.itemDataArray || []);
+      const itemIndex = buildItemIndex(actor, normalized.itemDataArray || [], affectedItems);
+      await appendEmbedded(actor, "ActiveEffect", prepareActorEffects(actor, normalized.actorEffects || [], itemIndex));
     } else if (strategy === "merge-by-external-id") {
-      await appendEmbedded(actor, "ActiveEffect", normalized.actorEffects || []);
-      await mergeItemsByExternalId(actor, normalized.itemDataArray || []);
+      const affectedItems = await mergeItemsByExternalId(actor, normalized.itemDataArray || []);
+      const itemIndex = buildItemIndex(actor, normalized.itemDataArray || [], affectedItems);
+      await appendEmbedded(actor, "ActiveEffect", prepareActorEffects(actor, normalized.actorEffects || [], itemIndex));
     } else {
       throw new Error(`Unknown import strategy '${strategy}'.`);
     }
@@ -105,11 +111,11 @@ function pickActorBase(source) {
 async function replaceEmbedded(actor, documentName, data) {
   const ids = embeddedIds(actor, documentName);
   await deleteEmbedded(actor, documentName, ids);
-  await createEmbedded(actor, documentName, data);
+  return createEmbedded(actor, documentName, data);
 }
 
 async function appendEmbedded(actor, documentName, data) {
-  await createEmbedded(actor, documentName, data);
+  return createEmbedded(actor, documentName, data);
 }
 
 async function mergeItemsByExternalId(actor, itemDataArray) {
@@ -137,8 +143,9 @@ async function mergeItemsByExternalId(actor, itemDataArray) {
     }
   });
 
-  await updateEmbedded(actor, "Item", toUpdate);
-  await createEmbedded(actor, "Item", toCreate);
+  const updated = await updateEmbedded(actor, "Item", toUpdate);
+  const created = await createEmbedded(actor, "Item", toCreate);
+  return [...updated, ...created];
 }
 
 async function createEmbedded(actor, documentName, data) {
@@ -211,6 +218,66 @@ async function deleteEmbedded(actor, documentName, ids) {
 
 function legacyEmbeddedName(documentName) {
   return documentName === "Item" ? "OwnedItem" : documentName;
+}
+
+function prepareActorEffects(actor, effects, itemIndex) {
+  return duplicateData(effects || []).map((effect) => {
+    const sourceItemExternalId = activeEffectSourceItemExternalId(effect);
+    const item = sourceItemExternalId ? itemIndex.get(sourceItemExternalId) : null;
+    if (item) {
+      effect.origin = itemOrigin(actor, item);
+    } else if (!effect.origin) {
+      effect.origin = actorOrigin(actor);
+    }
+    return effect;
+  });
+}
+
+function buildItemIndex(actor, sourceItems, affectedItems) {
+  const index = new Map();
+  asPairList(sourceItems, affectedItems).forEach(([source, affected]) => {
+    addIndexedItem(index, source, affected);
+    addIndexedItem(index, affected, affected);
+  });
+  embeddedValues(actor, "Item").forEach((item) => addIndexedItem(index, item, item));
+  return index;
+}
+
+function asPairList(sourceItems, affectedItems) {
+  return duplicateData(sourceItems || []).map((source, index) => [source, affectedItems?.[index]]);
+}
+
+function addIndexedItem(index, keySource, item) {
+  if (!item) return;
+  [
+    itemExternalId(keySource),
+    itemExternalId(item),
+    documentId(keySource),
+    documentId(item)
+  ].filter(Boolean).forEach((key) => index.set(key, item));
+}
+
+function activeEffectSourceItemExternalId(effect) {
+  return effect?.flags?.[FLAG_SCOPE]?.[FLAG_SOURCE_ITEM_EXTERNAL_ID] || itemIdFromOrigin(effect?.origin);
+}
+
+function itemIdFromOrigin(origin) {
+  const match = String(origin || "").match(/(?:OwnedItem|Item)\.([^.]*)$/);
+  return match ? match[1] : "";
+}
+
+function itemOrigin(actor, item) {
+  if (item?.uuid) return item.uuid;
+  const itemId = documentId(item);
+  if (!itemId) return actorOrigin(actor);
+  const base = actorOrigin(actor);
+  return base ? `${base}.OwnedItem.${itemId}` : itemId;
+}
+
+function actorOrigin(actor) {
+  if (actor?.uuid) return actor.uuid;
+  const id = documentId(actor);
+  return id ? `Actor.${id}` : "";
 }
 
 function itemExternalId(item) {

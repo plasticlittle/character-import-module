@@ -12,6 +12,7 @@ Standalone Foundry VTT module for importing canonical JSON character documents i
 - Bug-compatible PP calculation based on `Item3e.calculateEffectCost`.
 - Transaction rollback for create and update failures.
 - Legacy Foundry actor exports with root `data`, `items`, and `effects` are accepted and converted to the canonical importer format.
+- Passive, temporary, and inactive item ActiveEffects are mirrored to actor ActiveEffects with rewritten owned-item origins so MNM3E toggles and `@rank` changes work after import.
 
 ## Codex Skill Schema
 

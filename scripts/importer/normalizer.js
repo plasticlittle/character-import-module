@@ -2,6 +2,7 @@ import {
   DEFAULT_MAX_DEPTH,
   FLAG_EXTERNAL_ID,
   FLAG_SCOPE,
+  FLAG_SOURCE_ITEM_EXTERNAL_ID,
   TOP_LEVEL_ITEM_TYPES
 } from "./constants.js";
 import { actorSystemDefaults, createTemporaryItemSource } from "./defaults.js";
@@ -42,6 +43,7 @@ const DERIVED_REMOVALS = new Set([
 export async function normalizeDocument(document, options = {}) {
   const actor = document.actor;
   const actorData = normalizeActor(actor);
+  const actorEffects = normalizeActiveEffects(actor.activeEffects);
   const itemDataArray = [];
   for (const item of asArray(actor.items)) {
     itemDataArray.push(await normalizeItem(item, {
@@ -54,7 +56,7 @@ export async function normalizeDocument(document, options = {}) {
   }
   return {
     actorData,
-    actorEffects: normalizeActiveEffects(actor.activeEffects),
+    actorEffects: mergeActorActiveEffects(actorEffects, collectActorActiveEffects(itemDataArray)),
     itemDataArray
   };
 }
@@ -150,8 +152,91 @@ export function normalizeActiveEffects(activeEffects) {
     const copy = duplicateData(effect);
     delete copy.system;
     delete copy.activeEffects;
+    if (!copy.label && typeof copy.name === "string") copy.label = copy.name;
+    if (!copy.label) copy.label = "Active Effect";
+    if (!copy.icon) copy.icon = copy.img || "icons/svg/aura.svg";
+    if (!Array.isArray(copy.changes)) copy.changes = [];
+    if (typeof copy.disabled !== "boolean") copy.disabled = false;
     return copy;
   });
+}
+
+function collectActorActiveEffects(items) {
+  const effects = [];
+  asArray(items).forEach((item) => {
+    const externalId = itemExternalId(item);
+    asArray(item.effects).forEach((effect) => {
+      if (!hasActiveEffectChanges(effect)) return;
+      const actorEffect = duplicateData(effect);
+      markActiveEffectSourceItem(actorEffect, externalId, item.name);
+      effects.push(actorEffect);
+    });
+  });
+  return normalizeActiveEffects(effects);
+}
+
+function mergeActorActiveEffects(actorEffects, itemEffects) {
+  const merged = [];
+  const sourceSignatures = new Set();
+  const fallbackSignatures = new Set();
+
+  const remember = (effect) => {
+    merged.push(effect);
+    sourceSignatures.add(activeEffectSignature(effect, true));
+    fallbackSignatures.add(activeEffectSignature(effect, false));
+  };
+
+  actorEffects.forEach((effect) => remember(effect));
+  itemEffects.forEach((effect) => {
+    if (sourceSignatures.has(activeEffectSignature(effect, true))) return;
+    if (fallbackSignatures.has(activeEffectSignature(effect, false))) return;
+    remember(effect);
+  });
+  return merged;
+}
+
+function markActiveEffectSourceItem(effect, externalId, itemName) {
+  if (!externalId) return;
+  effect.flags = effect.flags || {};
+  effect.flags[FLAG_SCOPE] = effect.flags[FLAG_SCOPE] || {};
+  effect.flags[FLAG_SCOPE][FLAG_SOURCE_ITEM_EXTERNAL_ID] = externalId;
+  if (itemName && !effect.flags[FLAG_SCOPE].sourceItemName) {
+    effect.flags[FLAG_SCOPE].sourceItemName = itemName;
+  }
+}
+
+function activeEffectSignature(effect, includeSource) {
+  const label = String(effect?.label || "").trim();
+  const source = includeSource ? activeEffectSourceItemExternalId(effect) : "";
+  const changes = asArray(effect?.changes)
+    .map((change) => ({
+      key: change?.key || "",
+      mode: change?.mode ?? "",
+      value: change?.value ?? "",
+      priority: change?.priority ?? ""
+    }))
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  return JSON.stringify({ label, source, changes });
+}
+
+function activeEffectSourceItemExternalId(effect) {
+  const flagged = effect?.flags?.[FLAG_SCOPE]?.[FLAG_SOURCE_ITEM_EXTERNAL_ID];
+  if (flagged) return String(flagged);
+  return itemIdFromOrigin(effect?.origin);
+}
+
+function itemIdFromOrigin(origin) {
+  const text = String(origin || "");
+  const match = text.match(/(?:OwnedItem|Item)\.([^.]*)$/);
+  return match ? match[1] : "";
+}
+
+function itemExternalId(item) {
+  return item?.flags?.[FLAG_SCOPE]?.[FLAG_EXTERNAL_ID] || item?._id || "";
+}
+
+function hasActiveEffectChanges(effect) {
+  return asArray(effect?.changes).some((change) => String(change?.key || "").trim());
 }
 
 function applyExternalId(source, externalId) {

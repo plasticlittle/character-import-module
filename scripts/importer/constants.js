@@ -1,6 +1,7 @@
 export const MODULE_ID = "1000_mnm3e-character-importer";
 export const FLAG_SCOPE = "mnm3eCharacterImporter";
 export const FLAG_EXTERNAL_ID = "externalId";
+export const FLAG_SOURCE_ITEM_EXTERNAL_ID = "sourceItemExternalId";
 
 export const ACTOR_TYPES = ["character", "npc"];
 export const TOP_LEVEL_ITEM_TYPES = ["advantage", "power", "equipment", "vehicle", "base"];

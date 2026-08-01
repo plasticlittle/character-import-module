@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { completePowerEffectDetails, normalizeDocument } from "../scripts/importer/normalizer.js";
-import { FLAG_EXTERNAL_ID, FLAG_SCOPE } from "../scripts/importer/constants.js";
+import { FLAG_EXTERNAL_ID, FLAG_SCOPE, FLAG_SOURCE_ITEM_EXTERNAL_ID } from "../scripts/importer/constants.js";
 import { clone, loadExample } from "./helpers.js";
 
 test("maps canonical actor system and activeEffects to Foundry v9 data/effects", async () => {
@@ -116,3 +116,73 @@ test("adds DC formulas for required resist rolls without formulas", () => {
     value: "15 + @rank"
   }]);
 });
+
+test("hoists item active effects to actor effects so they can be toggled on the actor sheet", async () => {
+  const example = await loadExample();
+  const doc = clone(example);
+  doc.actor.activeEffects = [];
+  doc.actor.items = [rankedAdvantage({
+    externalId: "adv-defensive-roll",
+    name: "Defensive Roll",
+    activeEffects: [{
+      label: "Defensive Roll",
+      icon: "icons/svg/aura.svg",
+      disabled: false,
+      duration: { rounds: null, seconds: null },
+      changes: [{ key: "data.defenses.tgh.rank", value: "@rank * 1", mode: 0 }]
+    }]
+  })];
+
+  const normalized = await normalizeDocument(doc, { useFoundry: false });
+  assert.equal(normalized.actorEffects.length, 1);
+  assert.equal(normalized.actorEffects[0].label, "Defensive Roll");
+  assert.equal(normalized.actorEffects[0].flags[FLAG_SCOPE][FLAG_SOURCE_ITEM_EXTERNAL_ID], "adv-defensive-roll");
+  assert.equal(normalized.actorEffects[0].disabled, false);
+  assert.equal(normalized.itemDataArray[0].effects.length, 1);
+});
+
+test("keeps existing actor transfer effects ahead of item copies", async () => {
+  const example = await loadExample();
+  const doc = clone(example);
+  const changes = [{ key: "data.defenses.dge.rank", value: 5, mode: 2 }];
+  doc.actor.activeEffects = [{
+    label: "Evasion",
+    icon: "icons/svg/aura.svg",
+    origin: "Actor.old.OwnedItem.adv-evasion",
+    disabled: true,
+    duration: { rounds: 1 },
+    changes
+  }];
+  doc.actor.items = [rankedAdvantage({
+    externalId: "adv-evasion",
+    name: "Evasion",
+    activeEffects: [{
+      label: "Evasion",
+      icon: "icons/svg/aura.svg",
+      disabled: false,
+      duration: { rounds: 1 },
+      changes
+    }]
+  })];
+
+  const normalized = await normalizeDocument(doc, { useFoundry: false });
+  assert.equal(normalized.actorEffects.length, 1);
+  assert.equal(normalized.actorEffects[0].disabled, true);
+  assert.equal(normalized.actorEffects[0].origin, "Actor.old.OwnedItem.adv-evasion");
+});
+
+function rankedAdvantage({ externalId, name, activeEffects = [] }) {
+  return {
+    externalId,
+    name,
+    type: "advantage",
+    img: "icons/svg/upgrade.svg",
+    activeEffects,
+    system: {
+      rank: 1,
+      cost: { type: "perRank", value: 1, discountPer: 1 },
+      summary: { format: "@name @rank", position: "" },
+      description: { value: "", chat: "" }
+    }
+  };
+}

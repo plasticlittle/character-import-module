@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Mnm3eCharacterImportService } from "../scripts/importer/import-service.js";
 import { createActorTransaction, updateActorTransaction } from "../scripts/importer/transaction.js";
+import { FLAG_EXTERNAL_ID, FLAG_SCOPE } from "../scripts/importer/constants.js";
 import { loadExample } from "./helpers.js";
 
 test("dry-run import does not create or update documents", async () => {
@@ -107,9 +108,59 @@ test("create supports legacy createEmbeddedEntity API", async () => {
 
   assert.equal(result, actor);
   assert.deepEqual(calls, [
-    ["ActiveEffect", "Legacy Effect"],
-    ["OwnedItem", "Legacy Item"]
+    ["OwnedItem", "Legacy Item"],
+    ["ActiveEffect", "Legacy Effect"]
   ]);
+});
+
+test("create rewrites actor active effect origins to newly created owned items", async () => {
+  const createdEffects = [];
+  const actor = {
+    id: "newActor",
+    uuid: "Actor.newActor",
+    async createEmbeddedDocuments(type, documents) {
+      if (type === "Item") {
+        return documents.map((document, index) => ({
+          id: `newItem${index + 1}`,
+          uuid: `Actor.newActor.OwnedItem.newItem${index + 1}`,
+          name: document.name,
+          flags: document.flags,
+          data: {
+            _id: `newItem${index + 1}`,
+            flags: document.flags
+          }
+        }));
+      }
+      if (type === "ActiveEffect") {
+        createdEffects.push(...documents);
+        return documents;
+      }
+      return documents;
+    }
+  };
+  class ActorClass {
+    static async create() {
+      return actor;
+    }
+  }
+
+  await createActorTransaction({
+    actorData: { name: "Effect Origin Test", type: "character", data: {}, flags: {} },
+    itemDataArray: [{
+      name: "Defensive Roll",
+      type: "advantage",
+      data: {},
+      flags: { [FLAG_SCOPE]: { [FLAG_EXTERNAL_ID]: "oldItemId" } }
+    }],
+    actorEffects: [{
+      label: "Defensive Roll",
+      origin: "Actor.oldActor.OwnedItem.oldItemId",
+      changes: [{ key: "data.defenses.tgh.rank", value: "@rank * 1", mode: 0 }]
+    }]
+  }, { ActorClass });
+
+  assert.equal(createdEffects.length, 1);
+  assert.equal(createdEffects[0].origin, "Actor.newActor.OwnedItem.newItem1");
 });
 
 test("update rollback supports legacy embedded entity APIs", async () => {
