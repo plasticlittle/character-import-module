@@ -22,9 +22,9 @@
     }
   ],
   "packs": [],
-  "url": "",
-  "manifest": "",
-  "download": "",
+  "url": "https://github.com/plasticlittle/character-import-module",
+  "manifest": "https://raw.githubusercontent.com/plasticlittle/character-import-module/main/module.json",
+  "download": "https://raw.githubusercontent.com/plasticlittle/character-import-module/main/1000_mnm3e-character-importer-v0.1.0.zip",
   "license": "MIT",
   "readme": "README.md"
 }
