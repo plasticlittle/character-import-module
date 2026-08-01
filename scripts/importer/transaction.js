@@ -10,9 +10,9 @@ export async function commitImport(normalized, options = {}) {
 }
 
 export async function createActorTransaction(normalized, options = {}) {
-  const ActorClass = options.ActorClass || globalThis.Actor;
+  const ActorClass = resolveActorClass(options);
   if (!ActorClass || typeof ActorClass.create !== "function") {
-    throw new Error("Foundry Actor.create is not available.");
+    throw new Error("Foundry Actor.create is not available through Actor or CONFIG.Actor.documentClass.");
   }
 
   const actorData = duplicateData(normalized.actorData);
@@ -35,6 +35,14 @@ export async function createActorTransaction(normalized, options = {}) {
     }
     throw error;
   }
+}
+
+function resolveActorClass(options = {}) {
+  return options.ActorClass
+    || globalThis.CONFIG?.Actor?.documentClass
+    || globalThis.CONFIG?.Actor?.entityClass
+    || globalThis.CONFIG?.Actor?.implementation
+    || globalThis.Actor;
 }
 
 export async function updateActorTransaction(actor, normalized, options = {}) {
@@ -164,4 +172,3 @@ function embeddedValues(actor, documentName) {
 function documentId(document) {
   return document?.id || document?._id || document?.data?._id;
 }
-

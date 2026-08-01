@@ -51,6 +51,40 @@ test("create rollback deletes a newly created actor on embedded item failure", a
   assert.equal(deleted, true);
 });
 
+test("create uses CONFIG.Actor.documentClass when global Actor is unavailable", async () => {
+  const hadActor = Object.prototype.hasOwnProperty.call(globalThis, "Actor");
+  const originalActor = globalThis.Actor;
+  const originalConfig = globalThis.CONFIG;
+  let createdName = "";
+  const actor = {
+    async createEmbeddedDocuments() {
+      return [];
+    }
+  };
+  class DocumentActor {
+    static async create(data) {
+      createdName = data.name;
+      return actor;
+    }
+  }
+
+  try {
+    delete globalThis.Actor;
+    globalThis.CONFIG = { Actor: { documentClass: DocumentActor } };
+    const result = await createActorTransaction({
+      actorData: { name: "Created Via Config", type: "character", data: {}, flags: {} },
+      actorEffects: [],
+      itemDataArray: []
+    });
+    assert.equal(result, actor);
+    assert.equal(createdName, "Created Via Config");
+  } finally {
+    if (hadActor) globalThis.Actor = originalActor;
+    else delete globalThis.Actor;
+    globalThis.CONFIG = originalConfig;
+  }
+});
+
 test("update rollback restores actor, items and active effects", async () => {
   const calls = [];
   const actor = {

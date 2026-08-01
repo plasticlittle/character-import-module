@@ -1,0 +1,984 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/plasticlittle/character-import-module/main/schemas/mnm3e-character.codex-skill.schema.json",
+  "title": "MNM3E Codex Skill Character Authoring Schema",
+  "description": "Strict authoring schema for Codex skills that create complete canonical MNM3E character documents for the MNM3E Character Importer. The generated document uses canonical system and activeEffects fields; the importer maps them to Foundry v9 data and effects.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "actor", "expected"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Use this schema URI or a relative path to this schema file."
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "actor": {
+      "$ref": "#/$defs/actor"
+    },
+    "expected": {
+      "$ref": "#/$defs/expectedAudit"
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "integerRank": {
+      "type": "integer",
+      "minimum": -1000,
+      "maximum": 1000
+    },
+    "finiteNumber": {
+      "type": "number"
+    },
+    "externalId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "description": "Stable unique ID across the entire document. The importer stores it in flags.mnm3eCharacterImporter.externalId."
+    },
+    "abilityId": {
+      "enum": ["str", "sta", "agl", "dex", "fgt", "int", "awe", "pre"]
+    },
+    "defenseId": {
+      "enum": ["dge", "pry", "frt", "tgh", "wil"]
+    },
+    "skillId": {
+      "enum": ["acr", "ath", "cco", "dec", "exp", "ins", "itm", "inv", "prc", "per", "rco", "slt", "ste", "tec", "tre", "vhc"]
+    },
+    "dynamicSkillId": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+    },
+    "formulaDataPath": {
+      "oneOf": [
+        {
+          "enum": [
+            "abilities.str.total",
+            "abilities.sta.total",
+            "abilities.agl.total",
+            "abilities.dex.total",
+            "abilities.fgt.total",
+            "abilities.int.total",
+            "abilities.awe.total",
+            "abilities.pre.total",
+            "defenses.dge.total",
+            "defenses.pry.total",
+            "defenses.frt.total",
+            "defenses.tgh.total",
+            "defenses.wil.total",
+            "skills.acr.data.total",
+            "skills.ath.data.total",
+            "skills.cco.base",
+            "skills.dec.data.total",
+            "skills.exp.base",
+            "skills.ins.data.total",
+            "skills.itm.data.total",
+            "skills.inv.data.total",
+            "skills.prc.data.total",
+            "skills.per.data.total",
+            "skills.rco.base",
+            "skills.slt.data.total",
+            "skills.ste.data.total",
+            "skills.tec.data.total",
+            "skills.tre.data.total",
+            "skills.vhc.data.total",
+            "formula"
+          ]
+        },
+        {
+          "type": "string",
+          "pattern": "^skills\\.(cco|exp|rco)\\.data\\.[A-Za-z][A-Za-z0-9_-]{0,63}\\.total$"
+        }
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["externalId", "name", "type", "img", "system", "activeEffects", "items"],
+      "properties": {
+        "externalId": {
+          "$ref": "#/$defs/externalId"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "type": {
+          "enum": ["character", "npc"]
+        },
+        "img": {
+          "type": "string",
+          "default": "icons/svg/mystery-man.svg"
+        },
+        "flags": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {
+            "mnm3e": {
+              "overrideMaxPoints": false
+            }
+          }
+        },
+        "system": {
+          "$ref": "#/$defs/actorSystem"
+        },
+        "activeEffects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/activeEffect"
+          },
+          "default": []
+        },
+        "items": {
+          "type": "array",
+          "description": "Top-level embedded actor items. Only advantage, power, equipment, vehicle and base are valid here.",
+          "items": {
+            "$ref": "#/$defs/topLevelItem"
+          },
+          "default": []
+        }
+      }
+    },
+    "actorSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["abilities", "defenses", "attributes", "skills", "info", "victoryPoints", "earnedCharacterPoints"],
+      "properties": {
+        "abilities": {
+          "$ref": "#/$defs/abilities"
+        },
+        "defenses": {
+          "$ref": "#/$defs/defenses"
+        },
+        "attributes": {
+          "$ref": "#/$defs/attributes"
+        },
+        "skills": {
+          "$ref": "#/$defs/skills"
+        },
+        "info": {
+          "$ref": "#/$defs/actorInfo"
+        },
+        "victoryPoints": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1
+        },
+        "earnedCharacterPoints": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "isMinion": {
+          "type": "boolean",
+          "description": "Use only for NPC actors.",
+          "default": false
+        },
+        "maxPoints": {
+          "type": "number",
+          "description": "Only meaningful when flags.mnm3e.overrideMaxPoints is true."
+        }
+      }
+    },
+    "abilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["str", "sta", "agl", "dex", "fgt", "int", "awe", "pre"],
+      "properties": {
+        "str": { "$ref": "#/$defs/rankedScore" },
+        "sta": { "$ref": "#/$defs/rankedScore" },
+        "agl": { "$ref": "#/$defs/rankedScore" },
+        "dex": { "$ref": "#/$defs/rankedScore" },
+        "fgt": { "$ref": "#/$defs/rankedScore" },
+        "int": { "$ref": "#/$defs/rankedScore" },
+        "awe": { "$ref": "#/$defs/rankedScore" },
+        "pre": { "$ref": "#/$defs/rankedScore" }
+      }
+    },
+    "rankedScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rank"],
+      "properties": {
+        "rank": {
+          "$ref": "#/$defs/integerRank"
+        }
+      }
+    },
+    "defenses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dge", "pry", "frt", "tgh", "wil"],
+      "properties": {
+        "dge": { "$ref": "#/$defs/defenseDodge" },
+        "pry": { "$ref": "#/$defs/defenseParry" },
+        "frt": { "$ref": "#/$defs/defenseFortitude" },
+        "tgh": { "$ref": "#/$defs/defenseToughness" },
+        "wil": { "$ref": "#/$defs/defenseWill" }
+      }
+    },
+    "defenseDodge": {
+      "allOf": [
+        { "$ref": "#/$defs/defenseScore" },
+        { "properties": { "ability": { "const": "agl" } } }
+      ]
+    },
+    "defenseParry": {
+      "allOf": [
+        { "$ref": "#/$defs/defenseScore" },
+        { "properties": { "ability": { "const": "fgt" } } }
+      ]
+    },
+    "defenseFortitude": {
+      "allOf": [
+        { "$ref": "#/$defs/defenseScore" },
+        { "properties": { "ability": { "const": "sta" } } }
+      ]
+    },
+    "defenseToughness": {
+      "allOf": [
+        { "$ref": "#/$defs/defenseScore" },
+        { "properties": { "ability": { "const": "sta" } } }
+      ]
+    },
+    "defenseWill": {
+      "allOf": [
+        { "$ref": "#/$defs/defenseScore" },
+        { "properties": { "ability": { "const": "awe" } } }
+      ]
+    },
+    "defenseScore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rank", "ability"],
+      "properties": {
+        "rank": {
+          "$ref": "#/$defs/integerRank"
+        },
+        "ability": {
+          "$ref": "#/$defs/abilityId"
+        }
+      }
+    },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["powerLevel", "equipmentPoints", "initiative", "penaltyPoints", "movement"],
+      "properties": {
+        "powerLevel": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30
+        },
+        "equipmentPoints": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "initiative": {
+          "type": "integer",
+          "default": 0
+        },
+        "penaltyPoints": {
+          "type": "integer",
+          "maximum": 0,
+          "default": 0
+        },
+        "movement": {
+          "$ref": "#/$defs/movement"
+        }
+      }
+    },
+    "movement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["burrowing", "flight", "leaping", "speed", "swim", "teleport"],
+      "properties": {
+        "burrowing": { "type": "integer", "minimum": 0, "default": 0 },
+        "flight": { "type": "integer", "minimum": 0, "default": 0 },
+        "leaping": { "type": "integer", "minimum": 0, "default": 0 },
+        "speed": { "type": "integer", "minimum": 0, "default": 0 },
+        "swim": { "type": "integer", "minimum": 0, "default": 0 },
+        "teleport": { "type": "integer", "minimum": 0, "default": 0 }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acr", "ath", "cco", "dec", "exp", "ins", "itm", "inv", "prc", "per", "rco", "slt", "ste", "tec", "tre", "vhc"],
+      "properties": {
+        "acr": { "$ref": "#/$defs/staticSkillAcr" },
+        "ath": { "$ref": "#/$defs/staticSkillAth" },
+        "cco": { "$ref": "#/$defs/dynamicSkillCco" },
+        "dec": { "$ref": "#/$defs/staticSkillDec" },
+        "exp": { "$ref": "#/$defs/dynamicSkillExp" },
+        "ins": { "$ref": "#/$defs/staticSkillIns" },
+        "itm": { "$ref": "#/$defs/staticSkillItm" },
+        "inv": { "$ref": "#/$defs/staticSkillInv" },
+        "prc": { "$ref": "#/$defs/staticSkillPrc" },
+        "per": { "$ref": "#/$defs/staticSkillPer" },
+        "rco": { "$ref": "#/$defs/dynamicSkillRco" },
+        "slt": { "$ref": "#/$defs/staticSkillSlt" },
+        "ste": { "$ref": "#/$defs/staticSkillSte" },
+        "tec": { "$ref": "#/$defs/staticSkillTec" },
+        "tre": { "$ref": "#/$defs/staticSkillTre" },
+        "vhc": { "$ref": "#/$defs/staticSkillVhc" }
+      }
+    },
+    "staticSkillBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "ability", "trainedOnly", "actions", "base", "data"],
+      "properties": {
+        "type": { "const": "static" },
+        "ability": { "$ref": "#/$defs/abilityId" },
+        "trainedOnly": { "type": "boolean" },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionActivationType" },
+          "uniqueItems": true
+        },
+        "base": {
+          "type": "integer",
+          "default": 0
+        },
+        "data": {
+          "$ref": "#/$defs/rankedScore"
+        }
+      }
+    },
+    "dynamicSkillBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "ability", "trainedOnly", "actions", "base", "data"],
+      "properties": {
+        "type": { "const": "dynamic" },
+        "ability": { "$ref": "#/$defs/abilityId" },
+        "trainedOnly": { "type": "boolean" },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionActivationType" },
+          "uniqueItems": true
+        },
+        "base": {
+          "type": "integer",
+          "default": 0
+        },
+        "data": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/dynamicSkillId" },
+          "additionalProperties": { "$ref": "#/$defs/dynamicSkillEntry" },
+          "default": {}
+        }
+      }
+    },
+    "dynamicSkillEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rank", "displayName"],
+      "properties": {
+        "rank": { "$ref": "#/$defs/integerRank" },
+        "displayName": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "staticSkillAcr": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "agl" }, "trainedOnly": { "const": true } } }] },
+    "staticSkillAth": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "str" }, "trainedOnly": { "const": false } } }] },
+    "staticSkillDec": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "pre" }, "trainedOnly": { "const": false } } }] },
+    "staticSkillIns": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "awe" }, "trainedOnly": { "const": false } } }] },
+    "staticSkillItm": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "pre" }, "trainedOnly": { "const": false } } }] },
+    "staticSkillInv": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "int" }, "trainedOnly": { "const": true } } }] },
+    "staticSkillPrc": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "awe" }, "trainedOnly": { "const": false } } }] },
+    "staticSkillPer": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "pre" }, "trainedOnly": { "const": false } } }] },
+    "staticSkillSlt": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "dex" }, "trainedOnly": { "const": true } } }] },
+    "staticSkillSte": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "agl" }, "trainedOnly": { "const": false } } }] },
+    "staticSkillTec": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "int" }, "trainedOnly": { "const": true } } }] },
+    "staticSkillTre": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "int" }, "trainedOnly": { "const": true } } }] },
+    "staticSkillVhc": { "allOf": [{ "$ref": "#/$defs/staticSkillBase" }, { "properties": { "ability": { "const": "dex" }, "trainedOnly": { "const": true } } }] },
+    "dynamicSkillCco": { "allOf": [{ "$ref": "#/$defs/dynamicSkillBase" }, { "properties": { "ability": { "const": "fgt" }, "trainedOnly": { "const": false } } }] },
+    "dynamicSkillExp": { "allOf": [{ "$ref": "#/$defs/dynamicSkillBase" }, { "properties": { "ability": { "const": "int" }, "trainedOnly": { "const": true } } }] },
+    "dynamicSkillRco": { "allOf": [{ "$ref": "#/$defs/dynamicSkillBase" }, { "properties": { "ability": { "const": "dex" }, "trainedOnly": { "const": false } } }] },
+    "actorInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groupAffiliation", "identity", "baseOfOperations", "background", "notes", "complications", "gender", "age", "eyes", "height", "weight", "hair", "origins", "relationships", "assets"],
+      "properties": {
+        "groupAffiliation": { "type": "string", "default": "" },
+        "identity": { "type": "string", "default": "" },
+        "baseOfOperations": { "type": "string", "default": "" },
+        "background": { "type": "string", "default": "" },
+        "notes": { "type": "string", "default": "" },
+        "complications": { "type": "string", "default": "" },
+        "gender": { "type": "string", "default": "" },
+        "age": { "type": "string", "default": "" },
+        "eyes": { "type": "string", "default": "" },
+        "height": { "type": "string", "default": "" },
+        "weight": { "type": "string", "default": "" },
+        "hair": { "type": "string", "default": "" },
+        "origins": { "type": "string", "default": "" },
+        "relationships": { "type": "string", "default": "" },
+        "assets": { "type": "string", "default": "" }
+      }
+    },
+    "topLevelItem": {
+      "oneOf": [
+        { "$ref": "#/$defs/advantageItem" },
+        { "$ref": "#/$defs/powerItem" },
+        { "$ref": "#/$defs/equipmentItem" },
+        { "$ref": "#/$defs/vehicleItem" },
+        { "$ref": "#/$defs/baseItem" }
+      ]
+    },
+    "itemBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["externalId", "name", "type", "img", "system", "activeEffects"],
+      "properties": {
+        "externalId": { "$ref": "#/$defs/externalId" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "type": { "enum": ["advantage", "effect", "equipment", "modifier", "power", "vehicle", "base"] },
+        "img": { "type": "string", "default": "icons/svg/item-bag.svg" },
+        "flags": { "type": "object", "additionalProperties": true },
+        "activeEffects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/activeEffect" },
+          "default": []
+        },
+        "system": { "type": "object" }
+      }
+    },
+    "advantageItem": {
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "properties": {
+            "type": { "const": "advantage" },
+            "system": { "$ref": "#/$defs/scalingEffectSystem" }
+          }
+        }
+      ]
+    },
+    "effectItem": {
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "properties": {
+            "type": { "const": "effect" },
+            "system": { "$ref": "#/$defs/effectSystem" }
+          }
+        }
+      ]
+    },
+    "modifierItem": {
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "properties": {
+            "type": { "const": "modifier" },
+            "system": { "$ref": "#/$defs/modifierSystem" }
+          }
+        }
+      ]
+    },
+    "powerItem": {
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "properties": {
+            "type": { "const": "power" },
+            "system": { "$ref": "#/$defs/powerSystem" }
+          }
+        }
+      ]
+    },
+    "equipmentItem": {
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "properties": {
+            "type": { "const": "equipment" },
+            "system": { "$ref": "#/$defs/equipmentSystem" }
+          }
+        }
+      ]
+    },
+    "vehicleItem": {
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "properties": {
+            "type": { "const": "vehicle" },
+            "system": { "$ref": "#/$defs/vehicleSystem" }
+          }
+        }
+      ]
+    },
+    "baseItem": {
+      "allOf": [
+        { "$ref": "#/$defs/itemBase" },
+        {
+          "properties": {
+            "type": { "const": "base" },
+            "system": { "$ref": "#/$defs/baseSystem" }
+          }
+        }
+      ]
+    },
+    "description": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "chat"],
+      "properties": {
+        "value": { "type": "string", "default": "" },
+        "chat": { "type": "string", "default": "" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "position"],
+      "properties": {
+        "format": { "type": "string", "default": "" },
+        "position": { "enum": ["", "prefix", "suffix"] }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "value", "discountPer"],
+      "properties": {
+        "type": { "enum": ["flat", "perRank", "discount"] },
+        "value": { "$ref": "#/$defs/finiteNumber" },
+        "discountPer": {
+          "type": "number",
+          "minimum": 1,
+          "default": 1
+        }
+      }
+    },
+    "scalingEffectSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "summary", "activation", "action", "rank", "cost"],
+      "properties": {
+        "description": { "$ref": "#/$defs/description" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "activation": { "$ref": "#/$defs/activation" },
+        "action": { "$ref": "#/$defs/action" },
+        "rank": { "$ref": "#/$defs/integerRank" },
+        "cost": { "$ref": "#/$defs/cost" }
+      }
+    },
+    "effectSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "summary", "activation", "action", "rank", "cost", "modifiers"],
+      "properties": {
+        "description": { "$ref": "#/$defs/description" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "activation": { "$ref": "#/$defs/activation" },
+        "action": { "$ref": "#/$defs/action" },
+        "rank": { "$ref": "#/$defs/integerRank" },
+        "cost": { "$ref": "#/$defs/cost" },
+        "modifiers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/modifierItem" },
+          "default": []
+        }
+      }
+    },
+    "modifierSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "summary", "activation", "action", "rank", "cost", "expressions"],
+      "properties": {
+        "description": { "$ref": "#/$defs/description" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "activation": { "$ref": "#/$defs/activation" },
+        "action": { "$ref": "#/$defs/action" },
+        "rank": { "$ref": "#/$defs/integerRank" },
+        "cost": { "$ref": "#/$defs/cost" },
+        "expressions": {
+          "type": "array",
+          "items": { "type": "object", "additionalProperties": true },
+          "default": []
+        }
+      }
+    },
+    "powerSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "descriptor", "effects", "powerArray"],
+      "properties": {
+        "description": { "$ref": "#/$defs/description" },
+        "descriptor": { "type": "string", "default": "" },
+        "effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/effectItem" },
+          "default": []
+        },
+        "powerArray": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/powerItem" },
+          "default": []
+        }
+      }
+    },
+    "equipmentSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "descriptor", "effects"],
+      "properties": {
+        "description": { "$ref": "#/$defs/description" },
+        "descriptor": { "type": "string", "default": "" },
+        "effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/effectItem" },
+          "default": []
+        }
+      }
+    },
+    "vehicleSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "summary", "activation", "action", "rank", "cost", "descriptor", "effects", "info"],
+      "properties": {
+        "description": { "$ref": "#/$defs/description" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "activation": { "$ref": "#/$defs/activation" },
+        "action": { "$ref": "#/$defs/action" },
+        "rank": { "$ref": "#/$defs/integerRank" },
+        "cost": { "$ref": "#/$defs/cost" },
+        "descriptor": { "type": "string", "default": "" },
+        "effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/effectItem" },
+          "default": []
+        },
+        "info": { "$ref": "#/$defs/vehicleInfo" }
+      }
+    },
+    "baseSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "descriptor", "effects", "info"],
+      "properties": {
+        "description": { "$ref": "#/$defs/description" },
+        "descriptor": { "type": "string", "default": "" },
+        "effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/effectItem" },
+          "default": []
+        },
+        "info": { "$ref": "#/$defs/baseInfo" }
+      }
+    },
+    "vehicleInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["size", "strength", "speed", "defense", "toughness", "powers", "features"],
+      "properties": {
+        "size": { "type": "string", "default": "" },
+        "strength": { "type": "string", "default": "" },
+        "speed": { "type": "string", "default": "" },
+        "defense": { "type": "string", "default": "" },
+        "toughness": { "type": "string", "default": "" },
+        "powers": { "type": "string", "default": "" },
+        "features": { "type": "string", "default": "" }
+      }
+    },
+    "baseInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["size", "toughness", "features"],
+      "properties": {
+        "size": { "type": "string", "default": "" },
+        "toughness": { "type": "string", "default": "" },
+        "features": { "type": "string", "default": "" }
+      }
+    },
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "check", "consume", "duration", "range", "uses"],
+      "properties": {
+        "type": { "$ref": "#/$defs/wrappedActivationType" },
+        "check": { "$ref": "#/$defs/rollDetail" },
+        "consume": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "target", "amount"],
+          "properties": {
+            "type": { "$ref": "#/$defs/stringValue" },
+            "target": { "$ref": "#/$defs/nullableStringValue" },
+            "amount": { "$ref": "#/$defs/nullableNumberValue" }
+          }
+        },
+        "duration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": { "$ref": "#/$defs/wrappedDurationType" }
+          }
+        },
+        "range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["area", "type", "multiplier"],
+          "properties": {
+            "area": { "$ref": "#/$defs/wrappedAreaType" },
+            "type": { "$ref": "#/$defs/wrappedRangeType" },
+            "multiplier": { "$ref": "#/$defs/wrappedRangedMultiplier" }
+          }
+        },
+        "uses": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["amount", "max", "per"],
+          "properties": {
+            "amount": { "$ref": "#/$defs/numberValue" },
+            "max": { "$ref": "#/$defs/nullableNumberValue" },
+            "per": { "$ref": "#/$defs/nullableStringValue" },
+            "remaining": { "type": "number", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "roll"],
+      "properties": {
+        "type": { "$ref": "#/$defs/wrappedActionType" },
+        "roll": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attack", "resist"],
+          "properties": {
+            "attack": { "$ref": "#/$defs/rollDetail" },
+            "resist": { "$ref": "#/$defs/rollDetail" }
+          }
+        }
+      }
+    },
+    "rollDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formula", "targetScore", "rollType"],
+      "properties": {
+        "formula": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["value"],
+          "properties": {
+            "value": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/formulaPart" },
+              "default": []
+            }
+          }
+        },
+        "targetScore": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "custom"],
+          "properties": {
+            "type": { "$ref": "#/$defs/wrappedTargetScoreType" },
+            "custom": { "$ref": "#/$defs/stringValue" }
+          }
+        },
+        "rollType": { "$ref": "#/$defs/wrappedRollType" }
+      }
+    },
+    "formulaPart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "dataPath"],
+      "properties": {
+        "op": { "enum": ["+", "-"] },
+        "dataPath": { "$ref": "#/$defs/formulaDataPath" },
+        "value": {
+          "type": "string",
+          "description": "Required by semantic validation when dataPath is formula. Do not use eval-style JavaScript."
+        }
+      }
+    },
+    "stringValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "type": "string", "default": "" }
+      }
+    },
+    "numberValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "type": "number", "default": 0 }
+      }
+    },
+    "nullableStringValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "type": ["string", "null"], "default": null }
+      }
+    },
+    "nullableNumberValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "type": ["number", "null"], "default": null }
+      }
+    },
+    "wrappedActivationType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "enum": ["", "none", "standard", "move", "free", "reaction"] }
+      }
+    },
+    "wrappedActionType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "enum": ["", "attack", "control", "defense", "general", "movement", "sensory"] }
+      }
+    },
+    "wrappedDurationType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "enum": ["", "instant", "concentration", "sustained", "continuous", "permanent"] }
+      }
+    },
+    "wrappedRangeType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "enum": ["", "personal", "close", "ranged", "perception", "rank"] }
+      }
+    },
+    "wrappedAreaType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "enum": [null, "", "burst", "cloud", "cone", "cylinder", "line", "perception", "shapeable"] }
+      }
+    },
+    "wrappedRangedMultiplier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "enum": [null, "", "positive", "negative"] }
+      }
+    },
+    "wrappedRollType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "enum": ["", "none", "required"] }
+      }
+    },
+    "wrappedTargetScoreType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": {
+          "oneOf": [
+            { "$ref": "#/$defs/formulaDataPath" },
+            { "const": "custom" },
+            { "const": "" }
+          ]
+        }
+      }
+    },
+    "actionActivationType": {
+      "enum": ["standard", "move", "free", "reaction"]
+    },
+    "activeEffect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "icon", "disabled", "changes"],
+      "properties": {
+        "label": { "$ref": "#/$defs/nonEmptyString" },
+        "icon": { "type": "string", "default": "icons/svg/aura.svg" },
+        "disabled": { "type": "boolean", "default": false },
+        "changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/activeEffectChange" },
+          "default": []
+        },
+        "duration": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "origin": { "type": "string" },
+        "transfer": { "type": "boolean" },
+        "flags": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "activeEffectChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "mode", "value", "priority"],
+      "properties": {
+        "key": { "$ref": "#/$defs/nonEmptyString" },
+        "mode": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "value": { "type": "string" },
+        "priority": { "type": "integer", "default": 20 }
+      }
+    },
+    "expectedAudit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["points", "items"],
+      "properties": {
+        "points": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["abilities", "skills", "defenses", "advantages", "powers", "total", "max"],
+          "properties": {
+            "abilities": { "type": "number" },
+            "skills": { "type": "number" },
+            "defenses": { "type": "number" },
+            "advantages": { "type": "number" },
+            "powers": { "type": "number" },
+            "total": { "type": "number" },
+            "max": { "type": "number" }
+          }
+        },
+        "items": {
+          "type": "object",
+          "description": "Map item externalId to expected totalCost for top-level powers/equipment and power-array alternatives.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["totalCost"],
+            "properties": {
+              "totalCost": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
