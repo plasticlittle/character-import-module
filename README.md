@@ -11,6 +11,7 @@ Standalone Foundry VTT module for importing canonical JSON character documents i
 - Dry-run preview with schema validation, semantic validation, cost audit, item tree, and JSON report.
 - Bug-compatible PP calculation based on `Item3e.calculateEffectCost`.
 - Transaction rollback for create and update failures.
+- Legacy Foundry actor exports with root `data`, `items`, and `effects` are accepted and converted to the canonical importer format.
 
 ## Codex Skill Schema
 

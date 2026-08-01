@@ -9,6 +9,7 @@ import {
 } from "./cost-calculator.js";
 import { DEFAULT_MAX_DEPTH } from "./constants.js";
 import { asArray, duplicateData } from "./foundry-utils.js";
+import { convertLegacyFoundryActor } from "./legacy-fvtt-converter.js";
 
 export class Mnm3eCharacterImportService {
   constructor(options = {}) {
@@ -16,10 +17,8 @@ export class Mnm3eCharacterImportService {
   }
 
   parse(source) {
-    if (typeof source === "string") {
-      return JSON.parse(source);
-    }
-    return duplicateData(source);
+    const parsed = typeof source === "string" ? JSON.parse(source) : duplicateData(source);
+    return convertLegacyFoundryActor(parsed);
   }
 
   async prepare(source, options = {}) {
