@@ -797,6 +797,22 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["op", "dataPath"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "dataPath": { "const": "formula" }
+            },
+            "required": ["dataPath"]
+          },
+          "then": {
+            "required": ["value"],
+            "properties": {
+              "value": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ],
       "properties": {
         "op": { "enum": ["+", "-"] },
         "dataPath": { "$ref": "#/$defs/formulaDataPath" },

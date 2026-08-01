@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeDocument } from "../scripts/importer/normalizer.js";
+import { completePowerEffectDetails, normalizeDocument } from "../scripts/importer/normalizer.js";
 import { FLAG_EXTERNAL_ID, FLAG_SCOPE } from "../scripts/importer/constants.js";
 import { clone, loadExample } from "./helpers.js";
 
@@ -46,3 +46,73 @@ test("preserves recursive power arrays and dynamic skills", async () => {
   assert.equal(normalized.actorData.data.skills.exp.data.Science.rank, 4);
 });
 
+test("fills usable detail options for minimal power effects", async () => {
+  const example = await loadExample();
+  const doc = clone(example);
+  doc.actor.items = [{
+    externalId: "power-minimal",
+    name: "Minimal Power",
+    type: "power",
+    img: "icons/svg/explosion.svg",
+    system: {
+      description: { value: "", chat: "" },
+      effects: [{
+        externalId: "effect-minimal",
+        name: "Minimal Effect",
+        type: "effect",
+        img: "icons/svg/explosion.svg",
+        system: {
+          rank: 3,
+          cost: { type: "perRank", value: 1, discountPer: 1 }
+        }
+      }],
+      powerArray: []
+    }
+  }];
+
+  const normalized = await normalizeDocument(doc, { useFoundry: false });
+  const effect = normalized.itemDataArray[0].data.effects[0];
+  assert.equal(effect.data.activation.type.value, "standard");
+  assert.equal(effect.data.activation.check.rollType.value, "none");
+  assert.equal(effect.data.activation.duration.type.value, "instant");
+  assert.equal(effect.data.activation.range.type.value, "personal");
+  assert.equal(effect.data.action.type.value, "general");
+  assert.equal(effect.data.action.roll.attack.rollType.value, "none");
+  assert.equal(effect.data.action.roll.resist.rollType.value, "none");
+});
+
+test("adds DC formulas for required resist rolls without formulas", () => {
+  const data = {
+    rank: 8,
+    activation: {
+      type: { value: "standard" },
+      check: { rollType: { value: "none" }, formula: { value: [] }, targetScore: { type: { value: "" }, custom: { value: "" } } },
+      duration: { type: { value: "instant" } },
+      range: { type: { value: "ranged" }, area: { value: null }, multiplier: { value: null } },
+      consume: { type: { value: "" }, target: { value: null }, amount: { value: null } },
+      uses: { amount: { value: 0 }, max: { value: null }, per: { value: null } }
+    },
+    action: {
+      type: { value: "attack" },
+      roll: {
+        attack: {
+          rollType: { value: "required" },
+          formula: { value: [{ op: "+", dataPath: "skills.rco.base" }] },
+          targetScore: { type: { value: "defenses.dge.total" }, custom: { value: "" } }
+        },
+        resist: {
+          rollType: { value: "required" },
+          formula: { value: [] },
+          targetScore: { type: { value: "custom" }, custom: { value: "Toughness" } }
+        }
+      }
+    }
+  };
+
+  completePowerEffectDetails(data, "Damage");
+  assert.deepEqual(data.action.roll.resist.formula.value, [{
+    op: "+",
+    dataPath: "formula",
+    value: "15 + @rank"
+  }]);
+});

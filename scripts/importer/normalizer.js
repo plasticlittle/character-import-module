@@ -136,6 +136,9 @@ export async function normalizeItem(item, options = {}) {
   }
 
   mergeData(source.data, filtered, { inplace: true });
+  if (type === "effect") {
+    completePowerEffectDetails(source.data, source.name);
+  }
   delete source.system;
   delete source.items;
   delete source.activeEffects;
@@ -277,6 +280,164 @@ function filterAction(action) {
     },
     type: filterValueObject(action.type)
   };
+}
+
+export function completePowerEffectDetails(data, effectName = "") {
+  ensureEffectDetailShape(data);
+  const actionType = wrappedValue(data.action.type);
+  if (!actionType) {
+    data.action.type.value = "general";
+  }
+  const effectiveActionType = wrappedValue(data.action.type);
+
+  if (!wrappedValue(data.activation.type)) {
+    data.activation.type.value = defaultActivationType(effectiveActionType);
+  }
+  if (!wrappedValue(data.activation.duration.type)) {
+    data.activation.duration.type.value = defaultDurationType(effectiveActionType);
+  }
+  if (!wrappedValue(data.activation.range.type)) {
+    data.activation.range.type.value = defaultRangeType(effectiveActionType);
+  }
+  if (!data.activation.range.area.value) {
+    data.activation.range.area.value = null;
+  }
+  if (!data.activation.range.multiplier.value) {
+    data.activation.range.multiplier.value = null;
+  }
+  if (typeof data.activation.uses.amount.value !== "number") {
+    data.activation.uses.amount.value = 0;
+  }
+  if (data.activation.uses.max.value === undefined || data.activation.uses.max.value === "") {
+    data.activation.uses.max.value = null;
+  }
+  if (data.activation.uses.per.value === undefined || data.activation.uses.per.value === "") {
+    data.activation.uses.per.value = null;
+  }
+
+  completeRollDetail(data.activation.check, {
+    defaultRollType: "none",
+    defaultTargetType: "custom",
+    defaultCustomLabel: "DC",
+    defaultFormula: "@rank"
+  });
+
+  completeRollDetail(data.action.roll.attack, {
+    defaultRollType: effectiveActionType === "attack" ? "required" : "none",
+    defaultTargetType: "defenses.dge.total",
+    defaultCustomLabel: "Dodge",
+    defaultFormula: "@rank"
+  });
+
+  const resistanceLabel = inferResistanceLabel(data.action.roll.resist, effectName);
+  completeRollDetail(data.action.roll.resist, {
+    defaultRollType: "none",
+    defaultTargetType: "custom",
+    defaultCustomLabel: resistanceLabel,
+    defaultFormula: `${inferResistanceDcBase(resistanceLabel, effectName)} + @rank`
+  });
+}
+
+function ensureEffectDetailShape(data) {
+  data.activation = data.activation || {};
+  data.activation.type = ensureValueObject(data.activation.type, "");
+  data.activation.check = ensureRollDetail(data.activation.check);
+  data.activation.consume = data.activation.consume || {};
+  data.activation.consume.type = ensureValueObject(data.activation.consume.type, "");
+  data.activation.consume.target = ensureValueObject(data.activation.consume.target, null);
+  data.activation.consume.amount = ensureValueObject(data.activation.consume.amount, null);
+  data.activation.duration = data.activation.duration || {};
+  data.activation.duration.type = ensureValueObject(data.activation.duration.type, "");
+  data.activation.range = data.activation.range || {};
+  data.activation.range.area = ensureValueObject(data.activation.range.area, null);
+  data.activation.range.type = ensureValueObject(data.activation.range.type, "");
+  data.activation.range.multiplier = ensureValueObject(data.activation.range.multiplier, null);
+  data.activation.uses = data.activation.uses || {};
+  data.activation.uses.amount = ensureValueObject(data.activation.uses.amount, 0);
+  data.activation.uses.max = ensureValueObject(data.activation.uses.max, null);
+  data.activation.uses.per = ensureValueObject(data.activation.uses.per, null);
+
+  data.action = data.action || {};
+  data.action.type = ensureValueObject(data.action.type, "");
+  data.action.roll = data.action.roll || {};
+  data.action.roll.attack = ensureRollDetail(data.action.roll.attack);
+  data.action.roll.resist = ensureRollDetail(data.action.roll.resist);
+}
+
+function ensureRollDetail(detail) {
+  const result = detail || {};
+  result.formula = result.formula || {};
+  result.formula.value = asArray(result.formula.value);
+  result.targetScore = result.targetScore || {};
+  result.targetScore.type = ensureValueObject(result.targetScore.type, "");
+  result.targetScore.custom = ensureValueObject(result.targetScore.custom, "");
+  result.rollType = ensureValueObject(result.rollType, "");
+  return result;
+}
+
+function ensureValueObject(value, fallback) {
+  if (!isPlainObject(value)) return { value: fallback };
+  if (!Object.prototype.hasOwnProperty.call(value, "value")) value.value = fallback;
+  return value;
+}
+
+function completeRollDetail(detail, defaults) {
+  if (!wrappedValue(detail.rollType)) {
+    detail.rollType.value = defaults.defaultRollType;
+  }
+  if (!wrappedValue(detail.targetScore.type)) {
+    detail.targetScore.type.value = defaults.defaultTargetType;
+  }
+  if (wrappedValue(detail.targetScore.type) === "custom" && !wrappedValue(detail.targetScore.custom)) {
+    detail.targetScore.custom.value = defaults.defaultCustomLabel;
+  }
+  if (wrappedValue(detail.rollType) === "required" && detail.formula.value.length === 0) {
+    detail.formula.value.push({
+      op: "+",
+      dataPath: "formula",
+      value: defaults.defaultFormula
+    });
+  }
+}
+
+function wrappedValue(wrapper) {
+  const value = wrapper?.value;
+  return value === undefined || value === null ? "" : String(value);
+}
+
+function defaultActivationType(actionType) {
+  if (actionType === "movement") return "move";
+  if (["defense", "sensory"].includes(actionType)) return "none";
+  return "standard";
+}
+
+function defaultDurationType(actionType) {
+  if (actionType === "defense") return "permanent";
+  if (["movement", "sensory"].includes(actionType)) return "sustained";
+  return "instant";
+}
+
+function defaultRangeType(actionType) {
+  if (["attack", "control"].includes(actionType)) return "ranged";
+  return "personal";
+}
+
+function inferResistanceLabel(detail, effectName) {
+  const configured = wrappedValue(detail.targetScore?.custom);
+  if (configured) return configured;
+  const text = String(effectName || "").toLowerCase();
+  if (text.includes("will") || text.includes("mind") || text.includes("mental")) return "Will";
+  if (text.includes("fortitude") || text.includes("fort") || text.includes("poison")) return "Fortitude";
+  if (text.includes("dodge") || text.includes("bind") || text.includes("area")) return "Dodge";
+  return "Toughness";
+}
+
+function inferResistanceDcBase(label, effectName) {
+  const text = `${label || ""} ${effectName || ""}`.toLowerCase();
+  if (text.includes("toughness") || text.includes("zäh") || text.includes("zaeh") || text.includes("damage")) {
+    return 15;
+  }
+  return 10;
 }
 
 function filterRollDetail(detail) {
