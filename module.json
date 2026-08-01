@@ -1,0 +1,31 @@
+{
+  "name": "1000_mnm3e-character-importer",
+  "title": "MNM3E Character Importer",
+  "description": "Imports canonical JSON character documents into the legacy mnm3e system data model.",
+  "version": "0.1.0",
+  "author": "OpenAI Codex",
+  "minimumCoreVersion": "0.7.9",
+  "compatibleCoreVersion": "9",
+  "systems": ["mnm3e"],
+  "esmodules": ["scripts/main.js"],
+  "styles": ["styles/importer.css"],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    },
+    {
+      "lang": "de",
+      "name": "Deutsch",
+      "path": "lang/de.json"
+    }
+  ],
+  "packs": [],
+  "url": "",
+  "manifest": "",
+  "download": "1000_mnm3e-character-importer-v0.1.0.zip",
+  "license": "MIT",
+  "readme": "README.md"
+}
+

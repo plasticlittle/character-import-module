@@ -1,0 +1,80 @@
+<section class="mnm3e-character-importer-report">
+  <nav class="tabs" data-group="primary">
+    <a class="item active" data-tab="issues">{{localize "MNM3E_IMPORTER.Issues"}}</a>
+    <a class="item" data-tab="tree">{{localize "MNM3E_IMPORTER.Tree"}}</a>
+    <a class="item" data-tab="points">{{localize "MNM3E_IMPORTER.PointPreview"}}</a>
+    <a class="item" data-tab="json">{{localize "MNM3E_IMPORTER.JsonReport"}}</a>
+  </nav>
+
+  <section class="report-body">
+    <div class="tab active" data-group="primary" data-tab="issues">
+      <table>
+        <thead>
+          <tr>
+            <th>{{localize "MNM3E_IMPORTER.Severity"}}</th>
+            <th>{{localize "MNM3E_IMPORTER.Code"}}</th>
+            <th>{{localize "MNM3E_IMPORTER.Pointer"}}</th>
+            <th>{{localize "MNM3E_IMPORTER.ObjectName"}}</th>
+            <th>{{localize "MNM3E_IMPORTER.Message"}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each issues as |issue|}}
+          <tr class="severity-{{issue.severity}}">
+            <td>{{issue.severity}}</td>
+            <td>{{issue.code}}</td>
+            <td><code>{{issue.pointer}}</code></td>
+            <td>{{issue.name}}</td>
+            <td>{{issue.message}}</td>
+          </tr>
+          {{/each}}
+          {{#unless issues.length}}
+          <tr><td colspan="5">{{localize "MNM3E_IMPORTER.NoIssues"}}</td></tr>
+          {{/unless}}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="tree">
+      <table>
+        <thead>
+          <tr>
+            <th>{{localize "MNM3E_IMPORTER.Name"}}</th>
+            <th>{{localize "MNM3E_IMPORTER.Type"}}</th>
+            <th>{{localize "MNM3E_IMPORTER.ExternalId"}}</th>
+            <th>{{localize "MNM3E_IMPORTER.Cost"}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each rows as |row|}}
+          <tr class="{{#if row.invalidAlternative}}invalid{{/if}}">
+            <td style="padding-left: {{row.indent}}">{{row.name}}</td>
+            <td>{{row.type}}</td>
+            <td><code>{{row.externalId}}</code></td>
+            <td>{{row.totalCost}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="points">
+      {{#if costs}}
+      <div class="point-grid">
+        <span>{{localize "MNM3E_IMPORTER.Abilities"}}</span><strong>{{costs.abilities}}</strong>
+        <span>{{localize "MNM3E_IMPORTER.Skills"}}</span><strong>{{costs.skills}}</strong>
+        <span>{{localize "MNM3E_IMPORTER.Defenses"}}</span><strong>{{costs.defenses}}</strong>
+        <span>{{localize "MNM3E_IMPORTER.Advantages"}}</span><strong>{{costs.advantages}}</strong>
+        <span>{{localize "MNM3E_IMPORTER.Powers"}}</span><strong>{{costs.powers}}</strong>
+        <span>{{localize "MNM3E_IMPORTER.EquipmentInformational"}}</span><strong>{{costs.equipment}}</strong>
+        <span>{{localize "MNM3E_IMPORTER.Total"}}</span><strong class="{{#if costs.overMax}}invalid{{/if}}">{{costs.total}} / {{costs.max}}</strong>
+      </div>
+      {{/if}}
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="json">
+      <textarea readonly spellcheck="false">{{reportJson}}</textarea>
+    </div>
+  </section>
+</section>
+

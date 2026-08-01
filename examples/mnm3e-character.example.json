@@ -1,0 +1,287 @@
+{
+  "$schema": "../schemas/mnm3e-character.schema.json",
+  "schemaVersion": "1.0.0",
+  "actor": {
+    "externalId": "example-hero",
+    "name": "Example Hero",
+    "type": "character",
+    "img": "icons/svg/mystery-man.svg",
+    "flags": {
+      "mnm3e": {
+        "overrideMaxPoints": false
+      }
+    },
+    "system": {
+      "abilities": {
+        "str": { "rank": 2 },
+        "agl": { "rank": 1 }
+      },
+      "defenses": {
+        "dge": { "rank": 2, "ability": "agl" }
+      },
+      "attributes": {
+        "powerLevel": 8
+      },
+      "skills": {
+        "acr": {
+          "type": "static",
+          "ability": "agl",
+          "trainedOnly": true,
+          "actions": ["move", "free"],
+          "data": { "rank": 2 }
+        },
+        "exp": {
+          "type": "dynamic",
+          "ability": "int",
+          "trainedOnly": true,
+          "actions": [],
+          "data": {
+            "Science": {
+              "rank": 4,
+              "displayName": "Science"
+            }
+          }
+        }
+      },
+      "victoryPoints": 1,
+      "earnedCharacterPoints": 5
+    },
+    "activeEffects": [
+      {
+        "label": "Heroic Focus",
+        "icon": "icons/svg/aura.svg",
+        "disabled": false,
+        "changes": []
+      }
+    ],
+    "items": [
+      {
+        "externalId": "advantage-attractive",
+        "name": "Attractive",
+        "type": "advantage",
+        "img": "icons/svg/upgrade.svg",
+        "system": {
+          "rank": 2,
+          "cost": {
+            "type": "perRank",
+            "value": 1,
+            "discountPer": 1
+          },
+          "summary": {
+            "format": "@name @rank",
+            "position": ""
+          },
+          "description": {
+            "value": "A simple ranked advantage.",
+            "chat": ""
+          }
+        }
+      },
+      {
+        "externalId": "power-blast",
+        "name": "Energy Blast",
+        "type": "power",
+        "img": "icons/svg/explosion.svg",
+        "system": {
+          "descriptor": "Energy",
+          "description": {
+            "value": "A ranged damaging power.",
+            "chat": ""
+          },
+          "effects": [
+            {
+              "externalId": "effect-damage",
+              "name": "Damage",
+              "type": "effect",
+              "img": "icons/svg/explosion.svg",
+              "activeEffects": [
+                {
+                  "label": "Damage Rank",
+                  "icon": "icons/svg/aura.svg",
+                  "disabled": false,
+                  "changes": [
+                    {
+                      "key": "data.attributes.initiative",
+                      "mode": 2,
+                      "value": "@rank",
+                      "priority": 20
+                    }
+                  ]
+                }
+              ],
+              "system": {
+                "rank": 8,
+                "cost": {
+                  "type": "perRank",
+                  "value": 2,
+                  "discountPer": 1
+                },
+                "summary": {
+                  "format": "@prefix @name @rank @suffix",
+                  "position": ""
+                },
+                "description": {
+                  "value": "The primary damage effect.",
+                  "chat": ""
+                },
+                "activation": {
+                  "type": { "value": "standard" },
+                  "check": {
+                    "rollType": { "value": "required" },
+                    "formula": {
+                      "value": [
+                        {
+                          "op": "+",
+                          "dataPath": "abilities.str.total"
+                        },
+                        {
+                          "op": "+",
+                          "dataPath": "formula",
+                          "value": "2"
+                        }
+                      ]
+                    },
+                    "targetScore": {
+                      "type": { "value": "custom" },
+                      "custom": { "value": "DC 15" }
+                    }
+                  },
+                  "uses": {
+                    "max": { "value": 3 },
+                    "remaining": 2
+                  }
+                },
+                "action": {
+                  "type": { "value": "attack" },
+                  "roll": {
+                    "attack": {
+                      "rollType": { "value": "required" },
+                      "formula": {
+                        "value": [
+                          {
+                            "op": "+",
+                            "dataPath": "skills.exp.data.Science.total"
+                          }
+                        ]
+                      },
+                      "targetScore": {
+                        "type": { "value": "defenses.dge.total" },
+                        "custom": { "value": "" }
+                      }
+                    }
+                  }
+                },
+                "modifiers": [
+                  {
+                    "externalId": "modifier-accurate",
+                    "name": "Accurate",
+                    "type": "modifier",
+                    "img": "icons/svg/upgrade.svg",
+                    "system": {
+                      "rank": 2,
+                      "cost": {
+                        "type": "flat",
+                        "value": 1,
+                        "discountPer": 1
+                      },
+                      "summary": {
+                        "format": "@name @rank",
+                        "position": "prefix"
+                      },
+                      "description": {
+                        "value": "Flat ranked cost modifier.",
+                        "chat": ""
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "powerArray": [
+            {
+              "externalId": "power-alt-dazzle",
+              "name": "Dazzle",
+              "type": "power",
+              "img": "icons/svg/blind.svg",
+              "system": {
+                "descriptor": "Light",
+                "description": {
+                  "value": "An alternate power.",
+                  "chat": ""
+                },
+                "effects": [
+                  {
+                    "externalId": "effect-affliction",
+                    "name": "Affliction",
+                    "type": "effect",
+                    "img": "icons/svg/daze.svg",
+                    "system": {
+                      "rank": 4,
+                      "cost": {
+                        "type": "perRank",
+                        "value": 1,
+                        "discountPer": 1
+                      },
+                      "description": {
+                        "value": "A cheaper alternate effect.",
+                        "chat": ""
+                      }
+                    }
+                  }
+                ],
+                "powerArray": []
+              }
+            }
+          ]
+        }
+      },
+      {
+        "externalId": "equipment-comm",
+        "name": "Commlink",
+        "type": "equipment",
+        "img": "icons/svg/item-bag.svg",
+        "system": {
+          "descriptor": "Technology",
+          "description": {
+            "value": "Equipment cost is informational for actor PP.",
+            "chat": ""
+          },
+          "effects": [
+            {
+              "externalId": "effect-radio",
+              "name": "Radio Communication",
+              "type": "effect",
+              "img": "icons/svg/broadcast.svg",
+              "system": {
+                "rank": 1,
+                "cost": {
+                  "type": "perRank",
+                  "value": 1,
+                  "discountPer": 1
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "expected": {
+    "points": {
+      "abilities": 6,
+      "skills": 3,
+      "defenses": 2,
+      "advantages": 2,
+      "powers": 19,
+      "total": 32,
+      "max": 125
+    },
+    "items": {
+      "power-blast": { "totalCost": 19 },
+      "power-alt-dazzle": { "totalCost": 4 },
+      "equipment-comm": { "totalCost": 1 }
+    }
+  }
+}
+

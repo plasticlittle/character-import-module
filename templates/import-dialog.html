@@ -1,0 +1,81 @@
+<form class="mnm3e-character-importer-form">
+  <section class="import-grid">
+    <div class="form-group">
+      <label>{{localize "MNM3E_IMPORTER.Mode"}}</label>
+      <select name="mode">
+        {{#if hasActor}}
+        <option value="update" selected>{{localize "MNM3E_IMPORTER.ModeUpdate"}}</option>
+        <option value="create">{{localize "MNM3E_IMPORTER.ModeCreate"}}</option>
+        {{else}}
+        <option value="create" selected>{{localize "MNM3E_IMPORTER.ModeCreate"}}</option>
+        <option value="update">{{localize "MNM3E_IMPORTER.ModeUpdate"}}</option>
+        {{/if}}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "MNM3E_IMPORTER.Actor"}}</label>
+      {{#if hasActor}}
+      <input type="text" value="{{actor.name}}" disabled>
+      {{else}}
+      <select name="actorId">
+        <option value=""></option>
+        {{#each actors as |actor|}}
+        <option value="{{actor.id}}">{{actor.name}}</option>
+        {{/each}}
+      </select>
+      {{/if}}
+    </div>
+
+    <div class="form-group">
+      <label>{{localize "MNM3E_IMPORTER.Strategy"}}</label>
+      <select name="strategy">
+        <option value="replace">{{localize "MNM3E_IMPORTER.StrategyReplace"}}</option>
+        <option value="merge-by-external-id">{{localize "MNM3E_IMPORTER.StrategyMerge"}}</option>
+        <option value="append">{{localize "MNM3E_IMPORTER.StrategyAppend"}}</option>
+      </select>
+    </div>
+
+    <label class="form-group checkbox">
+      <input type="checkbox" name="dryRun" checked>
+      <span>{{localize "MNM3E_IMPORTER.DryRun"}}</span>
+    </label>
+  </section>
+
+  <section class="drop-zone">
+    <input type="file" name="jsonFile" accept=".json,application/json">
+  </section>
+
+  <textarea name="jsonText" spellcheck="false"></textarea>
+
+  <footer class="sheet-footer flexrow">
+    <button type="button" data-action="preview">
+      <i class="fas fa-search"></i> {{localize "MNM3E_IMPORTER.Preview"}}
+    </button>
+    <button type="button" data-action="import">
+      <i class="fas fa-file-import"></i> {{localize "MNM3E_IMPORTER.Import"}}
+    </button>
+  </footer>
+
+  {{#if preview}}
+  <section class="preview-summary">
+    <div class="preview-status {{#if preview.ok}}ok{{else}}error{{/if}}">
+      {{#if preview.ok}}{{localize "MNM3E_IMPORTER.ValidPreview"}}{{else}}{{localize "MNM3E_IMPORTER.InvalidPreview"}}{{/if}}
+    </div>
+    <div>{{localize "MNM3E_IMPORTER.Issues"}}: {{issueCount}}</div>
+    <div>{{localize "MNM3E_IMPORTER.Errors"}}: {{errorCount}}</div>
+  </section>
+
+  {{#if costs}}
+  <section class="point-preview">
+    <span>{{localize "MNM3E_IMPORTER.Abilities"}}: {{costs.abilities}}</span>
+    <span>{{localize "MNM3E_IMPORTER.Skills"}}: {{costs.skills}}</span>
+    <span>{{localize "MNM3E_IMPORTER.Defenses"}}: {{costs.defenses}}</span>
+    <span>{{localize "MNM3E_IMPORTER.Advantages"}}: {{costs.advantages}}</span>
+    <span>{{localize "MNM3E_IMPORTER.Powers"}}: {{costs.powers}}</span>
+    <span class="{{#if costs.overMax}}invalid{{/if}}">{{localize "MNM3E_IMPORTER.Total"}}: {{costs.total}} / {{costs.max}}</span>
+  </section>
+  {{/if}}
+  {{/if}}
+</form>
+

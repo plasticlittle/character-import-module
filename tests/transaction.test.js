@@ -1,0 +1,99 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { Mnm3eCharacterImportService } from "../scripts/importer/import-service.js";
+import { createActorTransaction, updateActorTransaction } from "../scripts/importer/transaction.js";
+import { loadExample } from "./helpers.js";
+
+test("dry-run import does not create or update documents", async () => {
+  const example = await loadExample();
+  let created = false;
+  class ActorClass {
+    static async create() {
+      created = true;
+      throw new Error("should not be called");
+    }
+  }
+  const result = await new Mnm3eCharacterImportService().import(example, {
+    dryRun: true,
+    mode: "create",
+    ActorClass,
+    useFoundry: false
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.committed, false);
+  assert.equal(created, false);
+});
+
+test("create rollback deletes a newly created actor on embedded item failure", async () => {
+  let deleted = false;
+  const actor = {
+    async createEmbeddedDocuments(type) {
+      if (type === "Item") throw new Error("item create failed");
+      return [];
+    },
+    async delete() {
+      deleted = true;
+    }
+  };
+  class ActorClass {
+    static async create() {
+      return actor;
+    }
+  }
+  await assert.rejects(
+    createActorTransaction({
+      actorData: { name: "Broken", type: "character", data: {}, flags: {} },
+      actorEffects: [],
+      itemDataArray: [{ name: "Item", type: "power", data: {} }]
+    }, { ActorClass }),
+    /item create failed/
+  );
+  assert.equal(deleted, true);
+});
+
+test("update rollback restores actor, items and active effects", async () => {
+  const calls = [];
+  const actor = {
+    name: "Old",
+    data: {
+      name: "Old",
+      type: "character",
+      img: "old.png",
+      data: { attributes: { powerLevel: 1 } },
+      flags: {},
+      items: [{ _id: "oldItem", name: "Old Item", type: "power", data: {} }],
+      effects: [{ _id: "oldEffect", label: "Old Effect" }]
+    },
+    items: [{ _id: "oldItem", name: "Old Item", type: "power", data: {} }],
+    effects: [{ _id: "oldEffect", label: "Old Effect" }],
+    toObject() {
+      return this.data;
+    },
+    async update(data) {
+      calls.push(["update", data.name]);
+    },
+    async deleteEmbeddedDocuments(type, ids) {
+      calls.push(["delete", type, ids.join(",")]);
+    },
+    async createEmbeddedDocuments(type, docs) {
+      calls.push(["create", type, docs.length]);
+      if (type === "Item" && docs.some((doc) => doc.name === "Bad Item")) {
+        throw new Error("update failed");
+      }
+      return docs;
+    }
+  };
+
+  await assert.rejects(
+    updateActorTransaction(actor, {
+      actorData: { name: "New", type: "character", img: "new.png", data: {}, flags: {} },
+      actorEffects: [],
+      itemDataArray: [{ name: "Bad Item", type: "power", data: {} }]
+    }, { strategy: "replace" }),
+    /update failed/
+  );
+
+  assert.equal(calls.some((call) => call[0] === "update" && call[1] === "Old"), true);
+  assert.equal(calls.some((call) => call[0] === "create" && call[1] === "ActiveEffect" && call[2] === 1), true);
+  assert.equal(calls.some((call) => call[0] === "create" && call[1] === "Item" && call[2] === 1), true);
+});

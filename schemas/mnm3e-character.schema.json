@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/mnm3e-character.schema.json",
+  "title": "MNM3E Character Import Document",
+  "type": "object",
+  "required": ["actor"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "type": "string" },
+    "actor": { "$ref": "#/$defs/actor" },
+    "expected": { "$ref": "#/$defs/expected" }
+  },
+  "$defs": {
+    "actor": {
+      "type": "object",
+      "required": ["name", "type", "system"],
+      "additionalProperties": false,
+      "properties": {
+        "externalId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["character", "npc"] },
+        "img": { "type": "string" },
+        "system": { "type": "object" },
+        "activeEffects": { "type": "array", "items": { "$ref": "#/$defs/activeEffect" } },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/topLevelItem" } },
+        "flags": { "type": "object" }
+      }
+    },
+    "topLevelItem": {
+      "allOf": [
+        { "$ref": "#/$defs/item" },
+        { "properties": { "type": { "enum": ["advantage", "power", "equipment", "vehicle", "base"] } } }
+      ]
+    },
+    "item": {
+      "type": "object",
+      "required": ["name", "type", "system"],
+      "additionalProperties": false,
+      "properties": {
+        "externalId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["advantage", "power", "equipment", "vehicle", "base", "effect", "modifier"] },
+        "img": { "type": "string" },
+        "system": { "type": "object" },
+        "activeEffects": { "type": "array", "items": { "$ref": "#/$defs/activeEffect" } },
+        "flags": { "type": "object" }
+      }
+    },
+    "activeEffect": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "label": { "type": "string" },
+        "icon": { "type": "string" },
+        "disabled": { "type": "boolean" },
+        "changes": { "type": "array" },
+        "duration": { "type": "object" },
+        "flags": { "type": "object" },
+        "origin": { "type": "string" },
+        "transfer": { "type": "boolean" }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "points": { "type": "object" },
+        "items": { "type": "object" }
+      }
+    }
+  }
+}
+

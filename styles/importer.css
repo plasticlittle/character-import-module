@@ -1,0 +1,100 @@
+.mnm3e-character-importer .import-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+}
+
+.mnm3e-character-importer .checkbox {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.mnm3e-character-importer .drop-zone {
+  border: 1px dashed rgba(0, 0, 0, 0.35);
+  margin: 10px 0;
+  padding: 10px;
+  min-height: 42px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.mnm3e-character-importer .drop-zone.dragging {
+  outline: 2px solid #4b7f9f;
+}
+
+.mnm3e-character-importer textarea[name="jsonText"],
+.mnm3e-character-importer-report textarea {
+  width: 100%;
+  min-height: 220px;
+  font-family: monospace;
+  resize: vertical;
+}
+
+.mnm3e-character-importer-report textarea {
+  min-height: 560px;
+}
+
+.mnm3e-character-importer .preview-summary,
+.mnm3e-character-importer .point-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 10px;
+  padding: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.mnm3e-character-importer .preview-status.ok {
+  color: #1b6f3a;
+  font-weight: 700;
+}
+
+.mnm3e-character-importer .preview-status.error,
+.mnm3e-character-importer .invalid,
+.mnm3e-character-importer-report .invalid {
+  color: #9d1f1f;
+  font-weight: 700;
+}
+
+.mnm3e-character-importer-report .tabs {
+  margin-bottom: 8px;
+}
+
+.mnm3e-character-importer-report table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mnm3e-character-importer-report th,
+.mnm3e-character-importer-report td {
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  vertical-align: top;
+}
+
+.mnm3e-character-importer-report code {
+  word-break: break-word;
+}
+
+.mnm3e-character-importer-report .severity-error {
+  background: rgba(170, 35, 35, 0.12);
+}
+
+.mnm3e-character-importer-report .severity-warning {
+  background: rgba(165, 120, 20, 0.12);
+}
+
+.mnm3e-character-importer-report .point-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(80px, auto);
+  gap: 6px 12px;
+  max-width: 420px;
+}
+
+button.mnm3e-character-importer-global {
+  width: 100%;
+  margin-top: 4px;
+}
+
